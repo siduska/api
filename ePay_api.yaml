@@ -1,0 +1,1552 @@
+openapi: 3.0.1
+info:
+  title: API pilot platby štátu ŠP
+  description: 'Pilotné riešenie so základnými službami pre platobný predpis, jeho úhradu a vrátenie z rozhodnutia úradu.'
+  version: 0.0.2
+servers:
+  - url: 'https://epay.pokladnica.sk/'
+    description: API ePay server komponentu prístupného v DC ŠP, publikované pre agendové IS
+paths:
+  /payment-order:
+    post:
+      tags:
+        - epay-payment
+      operationId: createPaymentOrder
+      summary: Vytvorenie platobného predpisu
+      description: 'Vytvorenie nového platobného predpisu pre účely služby evidencie jeho úhrady a realizácie jeho úhrady cez IS ŠP. Na vstupe poskytne úrad údaje predpisu, ePay doplní technické parametre vrátane businessID platobného predpisu. Metóda používa mechanizmus rozpoznania opakovania správy použitím jednoznačného messageID.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: jednoznačný identifikátor správy
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+                paymentOrderData:
+                  $ref: '#/components/schemas/PaymentOrderCreateData'
+                  description: 'business údaje, ktoré poskytne úrad pre zaevidovanie platobného predpisu'
+              required:
+                - messageID
+                - authority
+                - paymentOrderData
+        required: true
+      responses:
+        '200':
+          description: vytvorený platobný predpis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrderComplement'
+                description: 'doplnené technické údaje platobného predpisu, vrátane businessID'
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+
+  /payment-order/report:
+    post:
+      tags:
+        - epay-payment
+      operationId: searchPaymentOrders
+      summary: Vyhľadanie platobných predpisov
+      description: 'Vyhľadanie platobných predpisov na základe vstupných kritérií. Výsledné záznamy spĺňajú všetky zadané kritériá (operátor AND). Metóda vyhľadá len také záznamy, ktoré sú vytvorené na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK. Metóda poskytuje podporu stránkovania - nevracia všetky vyhovujúce záznamy, ale len požadovanú stránku výsledkov.
+        Pokiaľ sú systémovo spracovávané výsledky filtrované podľa modifiedFrom, je nutné výsledky sortovať podľa modifiedAt záznamov. Pri použití neunikátneho sortovacieho parametra a stránkovania sa odporúča použiť aj ďalší sortovací parameter (dátum vytvorenia, id a pod).'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+                criteria:
+                  $ref: '#/components/schemas/PaymentOrderSearchCriteria'
+                  description: kritériá pre vyhľadanie. aspoň jedno kritérium musí byť zadané.
+                paging:
+                  $ref: '#/components/schemas/Paging'
+                  description: parametre pre stránkovanie výsledkov.
+                sort:
+                  $ref: '#/components/schemas/Sorting'
+                  description: parametre pre sortovanie výsledkov.
+              required:
+                - authority
+                - criteria
+                - paging
+        required: true
+      responses:
+        '200':
+          description: 'úspech, zoznam platobných predpisov vyhovujúcich kritériám'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/PaymentOrderSearchResult'
+                      description: vybrané parametre platobného predpisu pre zobrazenie výsledkov vyhľadania
+                  page:
+                    $ref: '#/components/schemas/Page'
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+  '/payment-order/{businessID}':
+    put:
+      tags:
+        - epay-payment
+      operationId: changePaymentOrder
+      summary: Zmena platobného predpisu
+      description: Zmena vytvoreného platobného predpisu. Na vstupe poskytne úrad identifikáciu predpisu a nové údaje predpisu ako pri jeho vytvorení. ePay prepíše údaje predpisu a aktualizuje doplnené technické údaje. Metóda používa mechanizmus rozpoznania opakovania správy použitím jednoznačného messageID.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: jednoznačný identifikátor správy
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+                paymentOrderData:
+                  $ref: '#/components/schemas/PaymentOrderCreateData'
+                  description: 'business údaje, ktoré poskytne úrad pre zaevidovanie platobného predpisu'
+              required:
+                - messageID
+                - authority
+                - paymentOrderData
+        required: true
+      responses:
+        '200':
+          description: vytvorený platobný predpis.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrderComplement'
+                description: 'doplnené technické údaje platobného predpisu, vrátane businessID'
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '401':
+          description: zlý počiatočný stav platobného predpisu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúci platobný predpis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            $ref: '#/components/schemas/BusinessID'
+          name: businessID
+          description: Business ID platobného predpisu
+          in: path
+          required: true
+  '/payment-order/{businessID}/data':
+    post:
+      tags:
+        - epay-payment
+      operationId: getPaymentOrder
+      summary: Vráti údaje platobného predpisu
+      description: 'vráti všetky údaje platobného predpisu na základe daného businessID. Metóda skontroluje, či záznam je vytvorený na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+              required:
+                - authority
+        required: true
+      responses:
+        '200':
+          description: údaje platobného predpisu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+                description: kompletné údaje platobného predpisu
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúci platobný predpis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            $ref: '#/components/schemas/BusinessID'
+          name: businessID
+          description: Business ID platobného predpisu
+          in: path
+          required: true
+
+  '/payment-order/{vs}/datavs':
+    post:
+      tags:
+        - epay-payment
+      operationId: getPaymentOrderVS
+      summary: Vráti údaje platobného predpisu na základe variabilného symbolu identifikujúceho platobný predpis
+      description: 'vráti všetky údaje platobného predpisu na základe daného businessID. Metóda skontroluje, či záznam je vytvorený na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+              required:
+                - authority
+        required: true
+      responses:
+        '200':
+          description: údaje platobného predpisu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaymentOrder'
+                description: kompletné údaje platobného predpisu
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúci platobný predpis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            type: string
+          name: vs
+          description: Variabilný symbol platobného predpisu
+          in: path
+          required: true
+
+  '/payment-order/{businessID}/printout':
+    post:
+      tags:
+        - epay-payment
+      operationId: getPaymentOrderPrintOut
+      summary: Daj PDF platobného predpisu
+      description: 'vráti TZ platobného predpisu na základe daného businessID. Metóda skontroluje, či záznam je vytvorený na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+              required:
+                - authority
+        required: true
+      responses:
+        '200':
+          description: PDF platobného predpisu
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+                description: binárne dáta PDF
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúci platobný predpis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            $ref: '#/components/schemas/BusinessID'
+          name: businessID
+          description: Business ID platobného predpisu
+          in: path
+          required: true
+  '/payment-order/{businessID}/state':
+    post:
+      tags:
+        - epay-payment
+      operationId: cancelPaymentOrder
+      summary: Stornovanie platobného predpisu
+      description: 'Stornovanie platobného predpisu na základe daného businessID. Metóda najprv skontroluje stav a ak je vyhovujúci, stornuje platobný predpis. Metóda skontroluje, či záznam je vytvorený na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK. Metóda používa mechanizmus rozpoznania opakovania správy použitím jednoznačného messageID.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: jednoznačný identifikátor správy
+                action:
+                  type: string
+                  description: Zrušenie platobného predpisu
+                  enum:
+                    - cancel
+                authority:
+                  $ref: '#/components/schemas/Authority'
+              required:
+                - messageID
+                - action
+                - authority
+        required: true
+        description: ''
+      responses:
+        '200':
+          description: 'OK, platobný predpis bol stornovaný. Vráti nový stav platobného predpisu.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    $ref: '#/components/schemas/PaymentOrderState'
+                    description: nový stav platobného predpisu
+                required:
+                  - state
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '401':
+          description: zlý počiatočný stav platobného predpisu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúci platobný predpis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            $ref: '#/components/schemas/BusinessID'
+          name: businessID
+          description: Business ID platobného predpisu
+          in: path
+          required: true
+  /payment:
+    post:
+      tags:
+        - epay-payment
+      operationId: initilizePayment
+      summary: Inicializácia platby platobného predpisu na SmartPOS alebo PB ŠP
+      description: 'Inicializácia platby platobného predpisu na SmartPOS alebo PB ŠP na základe zoznamu businessID platobných predpisov, hradených 1 platbou. V pilotnom riešení môže zoznam obsahovať práve 1 platobný predpis. Metóda skontroluje stav platobných predpisov a ak sú OK, tak inicializuje platbu. Na rozdiel od iných metód, platobné predpisy nemusia byť vystavené úradom, ktorý vykonáva operáciu, aby bolo možné uhradiť platobné predpisy vystavené aj na iných úradoch. Pokiaľ je zvolená platba na SmartPOS, metóda skontroluje aj stav SmartPOS. V prípade chybného stavu SmartPOS vráti chybu. Následne platbu zaeviduje a spustí jej vykonanie na SmartPOS. Pokiaľ je zvolená platba na PB ŠP, metóda platbu len zaeviduje, jej spustenie je nutné metódou executePBPayment na ePay predradenom serveri. Metóda vráti jednoznačný identifikátor platby, v prípade platby na PBŠP bude formát identifikátora vyhovujúci pre metódu executePBPayment na ePay predradenom serveri. Metóda používa mechanizmus rozpoznania opakovania správy použitím jednoznačného messageID.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: jednoznačný identifikátor správy
+                payment:
+                  $ref: '#/components/schemas/PaymentCreateData'
+                  description: údaje pre inicializáciu platby
+                authority:
+                  $ref: '#/components/schemas/Authority'
+              required: [messageID, payment, authority]
+        required: true
+      responses:
+        '200':
+          description: 'OK, zinicializovaná platba. V prípade platby na SmartPOS je platba spustená.'
+          content:
+            application/json:
+              schema: 
+                $ref: '#/components/schemas/PaymentComplement'
+                description: doplňujúce údaje platby
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '401':
+          description: zlý počiatočný stav platobného predpisu
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '402':
+          description: zlý počiatočný stav SmartPOS
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúci platobný predpis
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+
+  '/payment/{orderNo}/state':
+    get:
+      tags:
+        - epay-payment
+      operationId: getPaymentState
+      summary: Vráti stav platby na PB ŠP alebo SmartPOS
+      description: Vráti stav platby na PB ŠP alebo SmartPOS. Platba musela byť predtým zaevidovaná metódou initilizePayment.
+      responses:
+        '200':
+          description: stav platby
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    $ref: '#/components/schemas/PaymentState'
+                    description: stav platby
+                required:
+                  - state
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúca platba
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            type: string
+          name: orderNo
+          description: 'jednoznačný identifikátor platby, získaný z metódy initilizePayment'
+          in: path
+          required: true
+          
+  '/payment/{orderNo}/receipt':
+    parameters:
+    - schema:
+        type: string
+      name: orderNo
+      description: 'jednoznačný identifikátor platby, získaný z metódy initilizePayment'
+      in: path
+      required: true
+    get:
+      tags:
+        - epay-payment
+      operationId: getPaymentReceipt
+      summary: Daj PDF potvrdenia o úhrade platobného predpisu hradeného na PB ŠP
+      description: Daj PDF potvrdenia o úhrade platobného predpisu na základe identifikátora platby. 
+        Platba musela byť predtým zaevidovaná metódou initilizePayment s paymentType=PBSP, a musí byť v stave ok.
+      responses:
+        '200':
+          description: PDF potvrdenia o úhrade platobného predpisu
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+                description: binárne dáta PDF
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúca platba
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+  
+  /refund-statement:
+    post:
+      tags:
+        - epay-refund
+      operationId: createRefundStatement
+      summary: Zaeviovanie rozhodnutia na vrátenie
+      description: 'Zaevidovanie rozhodnutia na vrátenie, vystaveného na úrade pre účely zrealizovania vrátenia v ŠP. Na vstupe poskytne úrad údaje vrátenia, ePay doplní technické parametre vrátane systémového ID záznamu vrátenia. Metóda používa mechanizmus rozpoznania opakovania správy použitím jednoznačného messageID.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: jednoznačný identifikátor správy
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+                refundStatementData:
+                  $ref: '#/components/schemas/RefundStatementCreateData'
+              required:
+                - messageID
+                - authority
+                - refundStatementData
+        required: true
+      responses:
+        '200':
+          description: vytvorený záznam vrátenia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundStatementComplement'
+                description: 'doplnené technické údaje vrátenia, vrátane systémového ID'
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+    
+  /refund-statement/report:
+    post:
+      tags:
+        - epay-refund
+      operationId: searchRefundStatements
+      summary: Vyhľadanie vrátení
+      description: 'Vyhľadanie vrátení na základe vstupných kritérií. Výsledné záznamy spĺňajú všetky zadané kritériá (operátor AND). Metóda vyhľadá len také záznamy, ktoré sú vytvorené na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK. Metóda poskytuje podporu stránkovania - nevracia všetky vyhovujúce záznamy, ale len požadovanú stránku výsledkov.
+        Pokiaľ sú systémovo spracovávané výsledky filtrované podľa modifiedFrom, je nutné výsledky sortovať podľa modifiedAt záznamov. Pri použití neunikátneho sortovacieho parametra a stránkovania sa odporúča použiť aj ďalší sortovací parameter (dátum vytvorenia, id a pod).'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+                criteria:
+                  $ref: '#/components/schemas/RefundStatementSearchCriteria'
+                  description: kritériá pre vyhľadanie. aspoň jedno kritérium musí byť zadané.
+                paging:
+                  $ref: '#/components/schemas/Paging'
+                  description: parametre pre stránkovanie výsledkov.
+                sort:
+                  $ref: '#/components/schemas/Sorting'
+                  description: parametre pre sortovanie výsledkov.
+              required:
+                - authority
+                - criteria
+                - paging
+        required: true
+      responses:
+        '200':
+          description: 'úspech, zoznam vrátení vyhovujúcich kritériám'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RefundStatementSearchResult'
+                  page:
+                    $ref: '#/components/schemas/Page'
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+  '/refund-statement/{refundID}':
+    put:
+      tags:
+        - epay-refund
+      operationId: changeRefundStatement
+      summary: Zmena rozhodnutia na vrátenie
+      description: 'Zmena zaevidovaného rozhodnutia na vrátenie. Na vstupe poskytne úrad identifikáciu vrátenia a údaje vrátenia, ako pri jeho vytvorení. ePay prepíše údaje vrátenia a aktualizuje doplnené technické údaje. Metóda používa mechanizmus rozpoznania opakovania správy použitím jednoznačného messageID.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: jednoznačný identifikátor správy
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+                refundStatementData:
+                  $ref: '#/components/schemas/RefundStatementCreateData'
+              required:
+                - messageID
+                - authority
+                - refundStatementData
+        required: true
+      responses:
+        '200':
+          description: vytvorený záznam vrátenia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundStatementComplement'
+                description: 'doplnené technické údaje vrátenia, vrátane systémového ID'
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '401':
+          description: zlý počiatočný stav vrátenia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúce vrátenie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            type: string
+          name: refundID
+          in: path
+          required: true
+          description: systémové ID záznamu vrátenia
+  '/refund-statement/{refundID}/state':
+    post:
+      tags:
+        - epay-refund
+      operationId: cancelRefundStatement
+      summary: Storno zaeviovania rozhodnutia na vrátenie
+      description: 'Storno zaevidovania rozhodnutia na vrátenie na základe daného systémového ID. Metóda najprv skontroluje stav a ak je vyhovujúci, stornuje vrátenie. Metóda skontroluje, či záznam je vytvorený na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK. Metóda používa mechanizmus rozpoznania opakovania správy použitím jednoznačného messageID.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                messageID:
+                  type: string
+                  description: jednoznačný identifikátor správy
+                action:
+                  type: string
+                  description: Zrušenie platobného predpisu
+                  enum:
+                    - cancel
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+              required:
+                - messageID
+                - action
+                - authority
+        required: true
+      responses:
+        '200':
+          description: 'OK, vrátenie bolo stornované. Vráti nový stav vrátenia.'
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  state:
+                    $ref: '#/components/schemas/RefundState'
+                    description: nový stav vrátenia
+                required:
+                  - state
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '401':
+          description: zlý počiatočný stav vrátenia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúce vrátenie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            type: string
+          name: refundID
+          in: path
+          required: true
+          description: systémové ID záznamu vrátenia
+  '/refund-statement/{refundID}/data':
+    post:
+      tags:
+        - epay-refund
+      operationId: getRefundStatement
+      summary: Vráti údaje vrátenia
+      description: 'vráti všetky údaje vrátenia na základe daného systémového ID záznamu. Metóda skontroluje, či záznam je vytvorený na rovnaký úrad, ktorý operáciu vykonáva. V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK.'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                authority:
+                  $ref: '#/components/schemas/Authority'
+                  description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+              required:
+                - authority
+        required: true
+      responses:
+        '200':
+          description: údaje vrátenia
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundStatement'
+                description: kompletné údaje vrátenia
+        '400':
+          description: chybné vstupné dáta. Bližšie info je v údaji description.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+        '404':
+          description: neexistujúce vrátenie
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Exception'
+                description: bližší popis chyby
+      parameters:
+        - schema:
+            type: string
+          name: refundID
+          in: path
+          required: true
+          description: systémové ID záznamu vrátenia
+
+  
+
+components:
+  schemas:
+    BusinessID:
+      description: Business ID platobného predpisu
+      type: string
+      pattern: '[A-Z0-9]{3}-[0-9]{6}-[0-9]{4}'
+
+    
+
+    PaymentOrderState:
+      description: stav platobnéjo predpisu
+      type: string
+      enum:
+        - issued
+        - paid-underpaid
+        - paid
+        - paid-overpaid
+        - refund-reserved
+        - refunded
+        - canceled
+    PaymentOrderBase:
+      description: základné údaje platobného predpisu
+      type: object
+      properties:
+        actNr:
+          type: string
+          description: cudzíe ID - číslo spisu
+        plaintNr:
+          description: cudzíe ID - číslo podania
+          type: string
+        proceedingNr:
+          type: string
+          description: cudzíe ID - číslo konania
+        foreign_messageID:
+          type: string
+          description: cudzíe ID - identifikátor message cointainera SKTalk správy elektronického podania
+        foreign_correlationID:
+          type: string
+          description: cudzíe ID - identifikátor message cointainera SKTalk správy elektronického podania
+        dueAt:
+          type: string
+          format: date
+          description: splatný do
+        issuedAt:
+          type: string
+          format: date
+          description: dátum vydania
+    TarriffedServiceBase:
+      description: základné údaje poskytnutej služby
+      type: object
+      properties:
+        code:
+          description: kód z číselníka služieb
+          type: string
+        unitPrice:
+          description: cena služby (môže byť iná ako z číselníka služieb)
+          type: number
+        units:
+          description: počet poskytnutí tejto služby
+          type: integer
+      required:
+        - code
+        - unitPrice
+        - units
+    TarriffedService:
+      description: 'údaje poskytnutej služby, obsahuje aj všetky údaje TarriffedServiceBase'
+      type: object
+      properties:
+        amountRefunded:
+          description: suma vrátená
+          type: number
+          minimum: 0
+      allOf:
+        - $ref: '#/components/schemas/TarriffedServiceBase'
+    PaymentData:
+      description: platobné údaje pre úhradu platobného predpisu. Väčšin parametrov sa vzťahuje k úhrade prevodom.
+      type: object
+      properties:
+        amount:
+          type: number
+          description: suma na úhradu
+        eComPaymentURL:
+          type: string
+          format: uri
+          description: verejná adresa pre úhradu platobného predpisu občanom
+        note:
+          type: string
+          description: poznámka
+        refSEPA:
+          type: string
+          description: platobné symboly v SEPA tvare /VS/SS/KS
+        account:
+          $ref: '#/components/schemas/Account'
+          description: 'účet, na ktorom je úhrada očakávaná'
+      required:
+        - amount
+        - eComPaymentURL
+        - refSEPA
+        - account
+    PaymentState:
+      description: stav platby platobného predpisu
+      type: string
+      enum:
+        - created
+        - open
+        - expired
+        - failed
+        - ok
+    PaymentCreateData:
+      description: údaje pre inicializáciu platby
+      type: object
+      properties:
+        paymentType:
+          type: string
+          enum:
+            - PBSP
+            - SmartPOS
+            - Transfer
+          description: platba pri inicializácii je požadovaná na PB ŠP alebo SmartPOS
+        SmartPOSID:
+          type: string
+          description: 'v prípade typu platby na SmartPOS určuje konkrétny TID, na ktorom bude platba vykonaná'
+        businessID:
+          description: Zoznam Business ID platobných predpisov pre úhradu 1 platbou. V pilotnom riešení môže zoznam obsahovať práve 1 platobný predpis.
+          type: array
+          items:
+            $ref: '#/components/schemas/BusinessID'
+            description: Business ID platobného predpisu
+          minItems: 1
+          uniqueItems: true
+        authority:
+          $ref: '#/components/schemas/Authority'
+          description: 'identifikácia úradu a prípadne pracoviska a úradníka, ktorý operáciu vykonáva'
+        receiptNote:
+          type: string
+          description: 'nepovinný text, max N znakov, ktorý bude dodatočne vytlačený na potvrdení o platbe.'
+      anyOf:
+        - description: pre prípad platby na SmartPOS
+          required:
+            - paymentType
+            - SmartPOSID
+            - businessID
+            - authority
+          properties:
+            paymentType:
+              type: string
+              enum:
+                - SmartPOS
+        - description: pre prípad platby na PB ŠP
+          required:
+            - paymentType
+            - businessID
+            - authority
+          properties:
+            paymentType:
+              type: string
+              enum:
+                - PBSP
+      required:
+        - paymentType
+        - businessID
+    PaymentComplement:
+      description: doplňujúce údaje platby
+      type: object
+      properties:
+        orderNo:
+          type: string
+        amountPayable:
+          type: number
+          description: suma na úhradu
+        refSEPA:
+          type: string
+          description: platobné symboly v SEPA tvare /VS/SS/KS
+        state:
+          $ref: '#/components/schemas/PaymentState'
+          description: stav platby
+      required:
+        - orderNo
+        - amountPayable
+        - state
+    Payment:
+      description: vykonaná platba
+      type: object
+      properties:
+        stateAt:
+          type: string
+          format: date-time
+          description: 'dátum a čas stavu platby'
+        account:
+          description: 'účet služby'
+          $ref: '#/components/schemas/Account'
+      allOf:
+        - $ref: '#/components/schemas/PaymentCreateData'
+        - $ref: '#/components/schemas/PaymentComplement'
+      required:
+        - paymentType
+        - businessID
+        - amountPayable
+        - state
+        - stateAt
+
+    PaymentOrderComplement:
+      description: doplňujúce údaje platobného predpisu
+      type: object
+      properties:
+        businessID:
+          $ref: '#/components/schemas/BusinessID'
+          description: Business ID platobného predpisu
+        amountPayed:
+          type: number
+          description: suma uhradená
+        modifiedAt:
+          type: string
+          format: date-time
+          description: dátum a čas poslednej zmeny akéhokoľvek údaju platobného predpisu
+        registeredAt:
+          type: string
+          format: date-time
+          description: systémový dátum a čas evidencie záznamu
+        paymentData:
+          $ref: '#/components/schemas/PaymentData'
+          description: platobné údaje platobného predpisu
+        state:
+          $ref: '#/components/schemas/PaymentOrderState'
+          description: stav platobného predpisu
+      required:
+        - businessID
+        - amount
+        - amountPayed
+        - modifiedAt
+        - registeredAt
+        - paymentData
+        - state
+    PaymentOrderCreateData:
+      description: súbor údajov pre vytvorenie platobného predpisu. Obsahuje aj údaje z PaymentOrderBase.
+      type: object
+      properties:
+        note:
+          type: string
+          description: poznámka úradníka
+        payers:
+          description: zoznam poplatníkov
+          type: array
+          items:
+            $ref: '#/components/schemas/TarriffPayer'
+            description: údaje jedného poplatníka
+        services:
+          description: zoznam služieb platobného predpisu
+          type: array
+          items:
+            $ref: '#/components/schemas/TarriffedServiceBase'
+            description: základné údaje služby platobného predpisu
+          minItems: 1
+      allOf:
+        - $ref: '#/components/schemas/PaymentOrderBase'
+      required:
+        - issuedAt
+        - payers
+        - services
+    PaymentOrder:
+      description: 'kompletné údaje platobného predpisu, obsahuje parametre z PaymentOrderCreateData a PaymentOrderComplement'
+      type: object
+      properties:
+        authority:
+          $ref: '#/components/schemas/Authority'
+          description: 'identifikácia úradu a prípadne pracoviska a úradníka, na ktorého je platobný predpis evidovaný/kto ho vytvoril'
+        services:
+          description: 'na rozdiel od PaymentOrderCreateData, obsahuje zoznam nielen základných údajov služieb, ale kompletnú verziu'
+          type: array
+          items:
+            $ref: '#/components/schemas/TarriffedService'
+            description: kompletné údaje jednej služby
+          minItems: 1
+        payments:
+          description: 'zoznam platieb viažúcich sa k platobnému predpisu'
+          type: array
+          items:
+            $ref: '#/components/schemas/Payment'
+            description: kompletné údaje jednej služby
+      allOf:
+        - $ref: '#/components/schemas/PaymentOrderCreateData'
+        - $ref: '#/components/schemas/PaymentOrderComplement'
+      required:
+        - issuedAt
+        - authority
+        - payers
+        - services
+        - businessID
+        - amount
+        - amountPayed
+        - modifiedAt
+        - registeredAt
+        - paymentData
+        - state
+    PaymentOrderSearchResult:
+      description: vybrané parametre platobného predpisu pre zobrazenie výsledkov vyhľadania. Obsahuje údaje z PaymentOrderBase a PaymentOrderComplement.
+      type: object
+      properties:
+        authority:
+          $ref: '#/components/schemas/Authority'
+          description: 'identifikácia úradu a prípadne pracoviska a úradníka, na ktorého je platobný predpis evidovaný/kto ho vytvoril'
+      allOf:
+        - $ref: '#/components/schemas/PaymentOrderBase'
+        - $ref: '#/components/schemas/PaymentOrderComplement'
+      required:
+        - authority
+        - issuedAt
+        - businessID
+        - amount
+        - amountPayed
+        - modifiedAt
+        - registeredAt
+        - paymentData
+        - state
+    PaymentOrderSearchCriteria:
+      description: 'kritériá na vyhľadanie platobného predpisu. Môže obsahovať aj údaje z PaymentOrderBase, v tom prípade sa vyhodnotí presná zhoda údajov.'
+      type: object
+      properties:
+        dueAtFrom:
+          type: string
+          format: date
+          description: 'vyhovuje, ak splatnosť do záznamu je väčšia alebo rovná ako dueAtFrom'
+        dueAtTo:
+          type: string
+          format: date
+          description: 'vyhovuje, ak splatnosť do záznamu je menšia alebo rovná ako dueAtTo'
+        issuedAtFrom:
+          type: string
+          format: date
+          description: 'vyhovuje, ak dátum vydania záznamu je väčšia alebo rovná ako issuedAtFrom'
+        issuedAtTo:
+          type: string
+          format: date
+          description: 'vyhovuje, ak dátum vydania záznamu je menšia alebo rovná ako issuedAtTo'
+        createdByOfficer:
+          type: string
+          description: 'zhoda úradníka, na ktorého je platobný predpis evidovaný/kto ho vytvoril'
+        workplaceCode:
+          type: string
+          description: 'zhoda pracoviska, na ktorý je platobný predpis evidovaný'
+        serviceCode:
+          type: string
+          description: 'zhoda, ak aspoň 1 služba platobného predpisu je na uvedený kód služby'
+        tariffPayerName:
+          type: string
+          description: 'zhoda, ak aspoň 1 poplatník platobného predpisu obsahuje reťazec znakov tariffPayerName. Bez rozlíšenia veľkých/malých písmen a diakritiky.'
+        tariffPayerID:
+          type: string
+          description: 'zhoda, ak aspoň jeden z identifikátorov registerID, TAXID, TAXVATID obsahuje zadané kritérium'
+        vs:
+          type: string
+          description: zhoda podľa variabilného symbolu, identifikujúceho platobný predpis
+        state:
+          $ref: '#/components/schemas/PaymentOrderState'
+          description: zhoda stavu platobného predpisu
+        modifiedFrom:
+          type: string
+          format: date-time
+          description: 'dátum a čas, od ktorého sú vyhľadané akékoľvek zmeny v evidencii platobných predpisov evidovaných na daný úrad.'
+      allOf:
+        - $ref: '#/components/schemas/PaymentOrderBase'
+    RefundState:
+      description: stav záznamu vrátenia
+      type: string
+      enum:
+        - registered
+        - returned
+        - returned-part
+        - canceled
+    RefundStatementBase:
+      description: základné údaje vrátenia
+      type: object
+      properties:
+        returnOrderNr:
+          type: string
+          description: číslo vrátenia vydné úradom
+        issuedAt:
+          type: string
+          format: date
+          description: dátum vydania
+        payableTo:
+          type: string
+          format: date
+          description: požadovaný dátum vrátenia fin. prostriedkov do
+        actNr:
+          type: string
+          description: cudzíe ID - číslo spisu
+        plaintNr:
+          description: cudzíe ID - číslo podania
+          type: string
+        proceedingNr:
+          type: string
+          description: cudzíe ID - číslo konania
+    RefundStatementCreateData:
+      description: dáta pre zaevidovanie vrátenia. Obsahuje aj údaje z RefundStatementBase.
+      type: object
+      properties:
+        note:
+          type: string
+          description: poznámka úradníka
+        items:
+          description: 'zoznam jednotlivých položiek na vrátenie, na 1 poplatníka a službu'
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundItemBase'
+            description: údaje jednej položky na vrátenie.
+          minItems: 1
+      allOf:
+        - $ref: '#/components/schemas/RefundStatementBase'
+      required:
+        - returnOrderNr
+        - issuedAt
+        - items
+    RefundStatementComplement:
+      description: doplňujúce údaje vrátenia
+      type: object
+      properties:
+        refundID:
+          type: string
+          description: systémové ID záznamu vrátenia
+        amount:
+          type: number
+          description: celková čiastka na vrátenie
+        amountReturned:
+          type: number
+          description: čiastka vrátená
+        modifiedAt:
+          type: string
+          format: date-time
+          description: dátum a čas poslednej zmeny akéhokoľvek údaju vrátenia
+        registeredAt:
+          type: string
+          format: date-time
+          description: systémový dátum a čas evidencie záznamu
+        state:
+          $ref: '#/components/schemas/RefundState'
+          description: stav vrátenia
+      required:
+        - refundID
+        - amount
+        - amountReturned
+        - modifiedAt
+        - registeredAt
+        - state
+    RefundItemBase:
+      description: základné údaje 1 položky vrátenia
+      type: object
+      properties:
+        businessID:
+          $ref: '#/components/schemas/BusinessID'
+          description: 'Business ID platobného predpisu, z ktorého sa realizuje vrátenie'
+        service:
+          $ref: '#/components/schemas/TarriffedServiceBase'
+          description: 'kód služby v platobnom predpise, z ktorej sa realizuje vrátenie'
+        payer:
+          description: 'údaje poplatníka, ktorému sa údaje vracajú. Aspoň jeden z údjov účet poplatníka / adresa poplatníka musia byť zadané.'
+          $ref: '#/components/schemas/TariffPayerAtRefund'
+        note:
+          type: string
+          description: 'poznámka k vráteniu určená pre poplatníka, bude súčasťou PPnA resp. prevodu'
+        refSEPA:
+          type: string
+          description: platobné symboly k vráteniu prevodom
+      required:
+        - businessID
+        - service
+        - payer
+    RefundItem:
+      description: 'kompletné údaje 1 položky vrátenia, obsahuje všety údaje z RefundItemBase'
+      type: object
+      properties:
+        payedAt:
+          type: string
+          format: date
+          description: vrátenie zrealizované dňa
+        state:
+          $ref: '#/components/schemas/RefundState'
+          description: stav položky vrátenia
+      allOf:
+        - $ref: '#/components/schemas/RefundItemBase'
+      required:
+        - businessID
+        - service
+        - payer
+        - state
+    RefundStatementSearchCriteria:
+      description: 'kritériá na vyhľadanie vrátenia. Môže obsahovať aj údaje z RefundStatementBase, v tom prípade sa vyhodnotí presná zhoda údajov.'
+      type: object
+      properties:
+        payableToFrom:
+          type: string
+          format: date
+          description: 'vyhovuje, ak uhradiť do záznamu je väčšia alebo rovná ako payableToFrom'
+        payableToTo:
+          type: string
+          format: date
+          description: 'vyhovuje, ak uhradiť do záznamu je menšia alebo rovná ako payableToTo'
+        issuedAtFrom:
+          type: string
+          format: date
+          description: 'vyhovuje, ak dátum vydania záznamu je väčšia alebo rovná ako issuedAtFrom'
+        issuedAtTo:
+          type: string
+          format: date
+          description: 'vyhovuje, ak dátum vydania záznamu je menšia alebo rovná ako issuedAtTo'
+        payedAtFrom:
+          type: string
+          format: date
+          description: 'vyhovuje, ak dátum uhradenia aspoň 1 položky je väčšia alebo rovná ako payedAtFrom'
+        payedAtTo:
+          type: string
+          format: date
+          description: 'vyhovuje, ak dátum uhradenia aspoň 1 položky je menšia alebo rovná ako payedAtTo'
+        createdByOfficer:
+          type: string
+          description: 'zhoda úradníka, na ktorého je vrátenie evidované/kto ho vytvoril'
+        workplaceCode:
+          type: string
+          description: 'zhoda pracoviska, na ktorý je vrátenie evidované'
+        serviceCode:
+          type: string
+          description: 'zhoda, ak aspoň 1 služba vrátenia je na uvedený kód služby'
+        tariffPayerName:
+          type: string
+          description: 'zhoda, ak aspoň 1 poplatník vrátenia obsahuje reťazec znakov tariffPayerName. Bez rozlíšenia veľkých/malých písmen a diakritiky.'
+        tariffPayerID:
+          type: string
+          description: 'zhoda, ak aspoň jeden z identifikátorov registerID, TAXID, TAXVATID obsahuje zadané kritérium'
+        state:
+          $ref: '#/components/schemas/RefundState'
+          description: zhoda stavu vrátenia
+        modifiedFrom:
+          type: string
+          format: date-time
+          description: 'dátum a čas, od ktorého sú vyhľadané akékoľvek zmeny v evidencii vrátení evidovaných na daný úrad.'
+      allOf:
+        - $ref: '#/components/schemas/RefundStatementBase'
+    RefundStatement:
+      description: 'kompletné údaje vrátenia, obsahuje parametre z RefundStatementCreateData a RefundStatementComplement'
+      type: object
+      properties:
+        authority:
+          $ref: '#/components/schemas/Authority'
+          description: 'identifikácia úradu a prípadne pracoviska a úradníka, na ktorého je vrátenie evidované/kto ho vytvoril'
+        items:
+          description: 'na rozdiel od RefundStatementCreateData, obsahuje zoznam nielen základných údajov položiek vrátenia, ale kompletnú verziu'
+          type: array
+          items:
+            $ref: '#/components/schemas/RefundItem'
+            description: kompletné údaje jednej položky na vrátenie.
+          minItems: 1
+      allOf:
+        - $ref: '#/components/schemas/RefundStatementCreateData'
+        - $ref: '#/components/schemas/RefundStatementComplement'
+      required:
+        - returnOrderNr
+        - issuedAt
+        - authority
+        - items
+        - refundID
+        - amount
+        - amountReturned
+        - modifiedAt
+        - registeredAt
+        - state
+    RefundStatementSearchResult:
+      description: vybrané parametre vrátenia pre zobrazenie výsledkov vyhľadania. Obsahuje údaje z RefundStatementBase a RefundStatementComplement.
+      type: object
+      properties:
+        authority:
+          $ref: '#/components/schemas/Authority'
+          description: 'identifikácia úradu a prípadne pracoviska a úradníka, na ktorého je vrátenie evidované/kto ho vytvoril'
+        payedAt:
+          type: string
+          format: date
+          description: vrátenie zrealizované dňa - maximum zo všetkých položiek na vrátenie
+      allOf:
+        - $ref: '#/components/schemas/RefundStatementBase'
+        - $ref: '#/components/schemas/RefundStatementComplement'
+      required:
+        - returnOrderNr
+        - issuedAt
+        - authority
+        - refundID
+        - amount
+        - amountReturned
+        - modifiedAt
+        - registeredAt
+        - state
+    Authority:
+      description: identifikácia úradu a úradníka
+      type: object
+      properties:
+        authorityCode:
+          type: string
+          description: kód úradu z dohodnutého číselníka V pilotnom riešení sa jedná o 1 kód predstavujúci ÚGKK.
+        officer:
+          type: string
+          description: 'identifikácia úradníka, pre účely dohľadania'
+        officerCode:
+          type: string
+          description: 'identifikácia úradníka podľa kódu, pre účely dohľadania'
+        workplaceCode:
+          type: string
+          description: 'identifikácia pracoviska úradu'
+      required:
+        - authorityCode
+    TarriffPayer:
+      description: údaje poplatníka služby pre účely platobného predpisu alebo vrátenia
+      type: object
+      properties:
+        type:
+          type: string
+          description: 'typ, fyzická osoba - NP, právnická osoba - LP'
+          enum:
+            - NP
+            - LP
+        name:
+          type: string
+          description: meno / názov
+        registerID:
+          type: string
+          description: IČO / RČ
+        TAXID:
+          type: string
+          description: DIČ
+        TAXVATID:
+          type: string
+          description: IČ DPH
+        address:
+          $ref: '#/components/schemas/Address'
+          description: adresa trv. pobytu / sídla
+        account:
+          $ref: '#/components/schemas/Account'
+          description: účet poplatníka
+      required:
+        - type
+        - name
+    TariffPayerAtRefund:
+      description: údaje poplatníka služby pre účely vrátenia
+      allOf:
+        - $ref: '#/components/schemas/TarriffPayer'
+        - type: object
+      anyOf:
+        - description: povinny account
+          required:
+            - type
+            - name
+            - account
+        - description: povinna adresa
+          required:
+            - type
+            - name
+            - address
+    Address:
+      description: adresa
+      type: object
+      properties:
+        city:
+          type: string
+          description: mesto
+        state:
+          type: string
+          description: štát
+        street:
+          type: string
+          description: ulica
+        streetNr:
+          type: string
+          description: číslo
+        ZIP:
+          type: string
+          description: PSČ
+      required:
+        - city
+        - state
+    Account:
+      description: údaje bankového účtu
+      type: object
+      properties:
+        BIC:
+          type: string
+        IBAN:
+          type: string
+      required:
+        - IBAN
+    Exception:
+      description: popis chyby pri volaní metódy rozhrania
+      type: object
+      properties:
+        code:
+          type: string
+          description: kód chyby
+        description:
+          type: string
+          description: popis chyby
+        correlationId:
+          type: string
+          description: korelacny identifikator na dohladanie okolia
+      required:
+        - code
+    Paging:
+      description: 'parametre pre určenie stránky výsledkov, ktoré budú v metóde vrátené.'
+      type: object
+      properties:
+        start:
+          type: integer
+          minimum: 0
+          description: 'prvý záznam, ktorý bude obsiahanutý medzi výsledkami metódy. Pri prvom volaní je potrebné nastaviť na 0.'
+        length:
+          type: integer
+          minimum: 10
+          description: 'maximálny počet výsledkov vrátený metódou. k metóda vráti menej záznamov, ako bolo požadované, jedná sa o poslednú stránku s výsledkami.'
+      required:
+        - start
+        - length
+    Sorting:
+      description: Parametre pre sortovnie výsledkov. Názov parametra môže byť prefixovaný znamienkom + alebo - vo význame ascending, descending. Pokiaľ znamienko nie je uvedené, ascending je default.
+      type: array
+      items:
+        type: string
+        example:
+          - 'modifiedAt'
+          - '-businessID'
+    Page:
+      title: Page
+      type: object
+      description: Udaje o aktuálnej stránke
+      properties:
+        size:
+          type: integer
+          description: Veľkosť aktuálnej stránky
+          format: int32
+        totalElements:
+          type: integer
+          description: Celkový počet elementov
+          format: int64
+        totalPages:
+          type: integer
+          description: Celkový počet stránok
+          format: int32
+        number:
+          type: integer
+          description: Aktuálne číslo stránky
+          format: int32
+      x-stoplight:
+        id: d39abe4c13786
+  
+
